@@ -15,6 +15,7 @@ exports.registerBusiness = async (req, res) => {
             businessType,
             email,
             thumbnail,
+            status: "Pending",
             promoCode: "PROMO-" + Math.random().toString(36).substr(2, 6).toUpperCase(),
         });
 

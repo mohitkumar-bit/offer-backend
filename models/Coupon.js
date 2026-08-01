@@ -33,9 +33,18 @@ const couponSchema = new mongoose.Schema({
     expiryDate: {
         type: Date,
     },
+    status: {
+        type: String,
+        enum: ["Pending", "Approved", "Rejected"],
+        default: "Pending",
+    },
     isActive: {
         type: Boolean,
-        default: true,
+        default: false,
+    },
+    isFeatured: {
+        type: Boolean,
+        default: false,
     },
 }, { timestamps: true });
 

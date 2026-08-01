@@ -1,6 +1,20 @@
 const Coupon = require("../models/Coupon");
 const Business = require("../models/Business");
 
+const publicCouponFilter = async (extraQuery = {}) => {
+    const approvedBusinessIds = await Business.find({ status: "Approved" }).distinct("_id");
+
+    return {
+        ...extraQuery,
+        isActive: true,
+        $or: [
+            { status: "Approved" },
+            { status: { $exists: false } },
+        ],
+        businessId: { $in: approvedBusinessIds },
+    };
+};
+
 exports.createCoupon = async (req, res) => {
     try {
         const { businessId } = req.body;
@@ -11,10 +25,18 @@ exports.createCoupon = async (req, res) => {
             return res.status(403).json({ message: "Unauthorized: You do not own this business" });
         }
 
+        if (business.status !== "Approved") {
+            return res.status(403).json({
+                message: "Your business must be approved by admin before you can submit offers",
+            });
+        }
+
         const coupon = await Coupon.create({
             ...req.body,
             businessId,
             location: business.location,
+            status: "Pending",
+            isActive: false,
         });
 
         res.status(201).json(coupon);
@@ -26,10 +48,24 @@ exports.createCoupon = async (req, res) => {
 exports.getAllCoupons = async (req, res) => {
     try {
         const { businessId } = req.query;
-        const query = { isActive: true };
-        if (businessId) query.businessId = businessId;
+        const extraQuery = businessId ? { businessId } : {};
+        const query = await publicCouponFilter(extraQuery);
 
-        const coupons = await Coupon.find(query).populate("businessId", "shopName thumbnail");
+        const coupons = await Coupon.find(query).populate("businessId", "shopName thumbnail status");
+        res.json(coupons);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
+exports.getFeaturedCoupons = async (req, res) => {
+    try {
+        const query = await publicCouponFilter({ isFeatured: true });
+
+        const coupons = await Coupon.find(query)
+            .populate("businessId", "shopName thumbnail status")
+            .sort({ updatedAt: -1 });
+
         res.json(coupons);
     } catch (error) {
         res.status(500).json({ message: error.message });
@@ -46,7 +82,7 @@ exports.getBusinessCoupons = async (req, res) => {
             return res.status(403).json({ message: "Unauthorized: You do not own this business" });
         }
 
-        const coupons = await Coupon.find({ businessId });
+        const coupons = await Coupon.find({ businessId }).sort({ createdAt: -1 });
         res.json(coupons);
     } catch (error) {
         res.status(500).json({ message: error.message });
@@ -63,7 +99,12 @@ exports.updateCoupon = async (req, res) => {
             return res.status(403).json({ message: "Unauthorized: You do not own the business for this coupon" });
         }
 
-        const updatedCoupon = await Coupon.findByIdAndUpdate(req.params.id, req.body, { new: true });
+        const updateData = { ...req.body };
+        delete updateData.status;
+        delete updateData.isActive;
+        delete updateData.isFeatured;
+
+        const updatedCoupon = await Coupon.findByIdAndUpdate(req.params.id, updateData, { new: true });
         res.json(updatedCoupon);
     } catch (error) {
         res.status(500).json({ message: error.message });

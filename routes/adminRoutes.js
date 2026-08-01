@@ -21,6 +21,8 @@ router.put("/businesses/:id/verify", adminController.verifyBusiness);
 
 // Coupons Management
 router.get("/coupons", adminController.getAllCoupons);
+router.put("/coupons/:id/verify", adminController.verifyCoupon);
+router.put("/coupons/:id/feature", adminController.toggleCouponFeature);
 router.delete("/coupons/:id", adminController.deleteCoupon);
 
 // Notifications

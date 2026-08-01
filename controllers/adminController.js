@@ -8,12 +8,25 @@ exports.getDashboardStats = async (req, res) => {
         const totalBusinesses = await Business.countDocuments();
         const pendingBusinesses = await Business.countDocuments({ status: "Pending" });
         const totalCoupons = await Coupon.countDocuments();
+        const pendingCoupons = await Coupon.countDocuments({ status: "Pending" });
+        const approvedCoupons = await Coupon.countDocuments({
+            $or: [{ status: "Approved" }, { status: { $exists: false } }],
+            isActive: true,
+        });
+        const featuredCoupons = await Coupon.countDocuments({
+            isFeatured: true,
+            isActive: true,
+            $or: [{ status: "Approved" }, { status: { $exists: false } }],
+        });
 
         res.status(200).json({
             totalUsers,
             totalBusinesses,
             pendingBusinesses,
             totalCoupons,
+            pendingCoupons,
+            approvedCoupons,
+            featuredCoupons,
         });
     } catch (error) {
         console.error("Error fetching stats:", error);
@@ -32,12 +45,28 @@ exports.getAllUsers = async (req, res) => {
 
 exports.getAllBusinesses = async (req, res) => {
     try {
-        const { status } = req.query; // optional filter
+        const { status } = req.query;
         const filter = status ? { status } : {};
         const businesses = await Business.find(filter)
             .populate("ownerId", "name email")
             .sort({ createdAt: -1 });
-        res.status(200).json(businesses);
+
+        const businessIds = businesses.map((b) => b._id);
+        const postCounts = await Coupon.aggregate([
+            { $match: { businessId: { $in: businessIds } } },
+            { $group: { _id: "$businessId", count: { $sum: 1 } } },
+        ]);
+
+        const countMap = Object.fromEntries(
+            postCounts.map((item) => [item._id.toString(), item.count])
+        );
+
+        const businessesWithCounts = businesses.map((business) => ({
+            ...business.toObject(),
+            postCount: countMap[business._id.toString()] || 0,
+        }));
+
+        res.status(200).json(businessesWithCounts);
     } catch (error) {
         res.status(500).json({ message: "Error fetching businesses", error: error.message });
     }
@@ -48,7 +77,7 @@ exports.verifyBusiness = async (req, res) => {
         const { id } = req.params;
         const { status } = req.body; // Expecting 'Approved' or 'Rejected'
 
-        if (!status || !["Approved", "Rejected", "Pending"].includes(status)) {
+        if (!status || !["Approved", "Rejected", "Pending", "Blocked"].includes(status)) {
             return res.status(400).json({ message: "Invalid status provided" });
         }
 
@@ -70,7 +99,13 @@ exports.verifyBusiness = async (req, res) => {
 
 exports.getAllCoupons = async (req, res) => {
     try {
-        const coupons = await Coupon.find()
+        const { status, businessId } = req.query;
+        const filter = {};
+
+        if (status) filter.status = status;
+        if (businessId) filter.businessId = businessId;
+
+        const coupons = await Coupon.find(filter)
             .populate({
                 path: "businessId",
                 select: "shopName ownerId",
@@ -104,6 +139,78 @@ exports.toggleUserBlock = async (req, res) => {
         });
     } catch (error) {
         res.status(500).json({ message: "Error toggling user block status", error: error.message });
+    }
+};
+
+exports.verifyCoupon = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { status } = req.body;
+
+        if (!status || !["Approved", "Rejected", "Pending"].includes(status)) {
+            return res.status(400).json({ message: "Invalid status provided" });
+        }
+
+        const updateData = { status };
+        if (status === "Approved") {
+            updateData.isActive = true;
+        } else if (status === "Rejected") {
+            updateData.isActive = false;
+            updateData.isFeatured = false;
+        }
+
+        const coupon = await Coupon.findByIdAndUpdate(id, updateData, { new: true }).populate({
+            path: "businessId",
+            select: "shopName ownerId",
+            populate: { path: "ownerId", select: "name email" },
+        });
+
+        if (!coupon) {
+            return res.status(404).json({ message: "Coupon not found" });
+        }
+
+        res.status(200).json({ message: `Coupon ${status} successfully`, coupon });
+    } catch (error) {
+        res.status(500).json({ message: "Error updating coupon status", error: error.message });
+    }
+};
+
+exports.toggleCouponFeature = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { isFeatured } = req.body;
+
+        if (typeof isFeatured !== "boolean") {
+            return res.status(400).json({ message: "isFeatured must be a boolean" });
+        }
+
+        const coupon = await Coupon.findById(id);
+        if (!coupon) {
+            return res.status(404).json({ message: "Coupon not found" });
+        }
+
+        const isApproved = coupon.status === "Approved" || !coupon.status;
+        if (isFeatured && (!isApproved || !coupon.isActive)) {
+            return res.status(400).json({
+                message: "Only approved and live offers can be featured",
+            });
+        }
+
+        coupon.isFeatured = isFeatured;
+        await coupon.save();
+
+        const populated = await Coupon.findById(id).populate({
+            path: "businessId",
+            select: "shopName ownerId thumbnail",
+            populate: { path: "ownerId", select: "name email" },
+        });
+
+        res.status(200).json({
+            message: isFeatured ? "Offer featured successfully" : "Offer removed from featured",
+            coupon: populated,
+        });
+    } catch (error) {
+        res.status(500).json({ message: "Error updating featured status", error: error.message });
     }
 };
 

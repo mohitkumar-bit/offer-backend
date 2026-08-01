@@ -9,5 +9,6 @@ router.post("/login", authController.login);
 router.post("/refresh", authController.refresh);
 router.get("/me", authMiddleware, authController.getMe);
 router.patch("/update", authMiddleware, upload.single("avatar"), authController.updateProfile);
+router.patch("/change-password", authMiddleware, authController.changePassword);
 
 module.exports = router;

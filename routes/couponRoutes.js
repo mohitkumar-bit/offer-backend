@@ -4,6 +4,7 @@ const couponController = require("../controllers/couponController");
 const authMiddleware = require("../middlewares/authMiddleware");
 
 // Public routes
+router.get("/featured", couponController.getFeaturedCoupons);
 router.get("/", couponController.getAllCoupons);
 
 // Protected routes (Vendor only)
