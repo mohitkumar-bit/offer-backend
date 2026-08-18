@@ -1,6 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const adminController = require("../controllers/adminController");
+const categoryController = require("../controllers/categoryController");
 const authMiddleware = require("../middlewares/authMiddleware");
 const adminMiddleware = require("../middlewares/adminMiddleware");
 
@@ -24,6 +25,12 @@ router.get("/coupons", adminController.getAllCoupons);
 router.put("/coupons/:id/verify", adminController.verifyCoupon);
 router.put("/coupons/:id/feature", adminController.toggleCouponFeature);
 router.delete("/coupons/:id", adminController.deleteCoupon);
+
+// Categories
+router.get("/categories", categoryController.getAllCategoriesAdmin);
+router.post("/categories", categoryController.createCategory);
+router.put("/categories/:id", categoryController.updateCategory);
+router.delete("/categories/:id", categoryController.deleteCategory);
 
 // Notifications
 const notificationController = require("../controllers/notificationController");

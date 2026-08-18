@@ -1,10 +1,24 @@
 const Business = require("../models/Business");
 const User = require("../models/User");
+const Category = require("../models/Category");
 
 exports.registerBusiness = async (req, res) => {
     try {
         const { shopName, ownerName, phone, location, businessType, email } = req.body;
         const thumbnail = req.file ? req.file.path : undefined;
+
+        if (!businessType || !businessType.trim()) {
+            return res.status(400).json({ message: "Shop category is required" });
+        }
+
+        const category = await Category.findOne({
+            name: businessType.trim(),
+            isActive: true,
+        });
+
+        if (!category) {
+            return res.status(400).json({ message: "Invalid shop category selected" });
+        }
 
         const business = await Business.create({
             ownerId: req.user._id,
@@ -12,7 +26,7 @@ exports.registerBusiness = async (req, res) => {
             ownerName,
             phone,
             location,
-            businessType,
+            businessType: businessType.trim(),
             email,
             thumbnail,
             status: "Pending",
@@ -38,6 +52,20 @@ exports.updateBusiness = async (req, res) => {
     try {
         const { id } = req.params;
         const updateData = { ...req.body };
+
+        if (updateData.businessType) {
+            const category = await Category.findOne({
+                name: updateData.businessType.trim(),
+                isActive: true,
+            });
+
+            if (!category) {
+                return res.status(400).json({ message: "Invalid shop category selected" });
+            }
+
+            updateData.businessType = updateData.businessType.trim();
+        }
+
         if (req.file) {
             updateData.thumbnail = req.file.path;
         }

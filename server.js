@@ -32,6 +32,7 @@ app.use("/api/auth", require("./routes/authRoutes"));
 app.use("/api/business", require("./routes/businessRoutes"));
 app.use("/api/admin", require("./routes/adminRoutes"));
 app.use("/api/coupons", require("./routes/couponRoutes"));
+app.use("/api/categories", require("./routes/categoryRoutes"));
 app.use("/api/saved-offers", require("./routes/savedOfferRoutes"));
 app.use("/api/notifications", require("./routes/notificationRoutes"));
 
