@@ -11,6 +11,11 @@ const categorySchema = new mongoose.Schema({
         type: Boolean,
         default: true,
     },
+    icon: {
+        type: String,
+        default: "category",
+        trim: true,
+    },
 }, { timestamps: true });
 
 module.exports = mongoose.model("Category", categorySchema);

@@ -18,4 +18,34 @@ const storage = new CloudinaryStorage({
 
 const upload = multer({ storage: storage });
 
-module.exports = { cloudinary, upload };
+const bannerStorage = new CloudinaryStorage({
+    cloudinary: cloudinary,
+    params: {
+        folder: "offer-banners",
+        allowed_formats: ["jpg", "png", "jpeg", "webp"],
+    },
+});
+
+const bannerUpload = multer({ storage: bannerStorage });
+
+const couponStorage = new CloudinaryStorage({
+    cloudinary: cloudinary,
+    params: {
+        folder: "offer-coupons",
+        allowed_formats: ["jpg", "png", "jpeg", "webp"],
+    },
+});
+
+const couponUpload = multer({ storage: couponStorage });
+
+const avatarStorage = new CloudinaryStorage({
+    cloudinary: cloudinary,
+    params: {
+        folder: "offer-avatars",
+        allowed_formats: ["jpg", "png", "jpeg", "webp"],
+    },
+});
+
+const avatarUpload = multer({ storage: avatarStorage });
+
+module.exports = { cloudinary, upload, bannerUpload, couponUpload, avatarUpload };

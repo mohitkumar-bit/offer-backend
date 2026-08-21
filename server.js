@@ -35,6 +35,7 @@ app.use("/api/coupons", require("./routes/couponRoutes"));
 app.use("/api/categories", require("./routes/categoryRoutes"));
 app.use("/api/saved-offers", require("./routes/savedOfferRoutes"));
 app.use("/api/notifications", require("./routes/notificationRoutes"));
+app.use("/api/banner", require("./routes/bannerRoutes"));
 
 // Error handling middleware
 app.use((err, req, res, next) => {

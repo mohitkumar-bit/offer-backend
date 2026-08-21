@@ -1,5 +1,6 @@
 const Coupon = require("../models/Coupon");
 const Business = require("../models/Business");
+const { resolveUploadedFileUrl, isRemoteImageUrl } = require("../utils/uploadUtils");
 
 const publicCouponFilter = async (extraQuery = {}) => {
     const approvedBusinessIds = await Business.find({ status: "Approved" }).distinct("_id");
@@ -31,17 +32,46 @@ exports.createCoupon = async (req, res) => {
             });
         }
 
-        const coupon = await Coupon.create({
+        const couponData = {
             ...req.body,
             businessId,
             location: business.location,
             status: "Pending",
             isActive: false,
-        });
+        };
+
+        delete couponData.image;
+
+        const uploadedImage = resolveUploadedFileUrl(req.file);
+        if (uploadedImage) {
+            couponData.image = uploadedImage;
+        } else if (isRemoteImageUrl(req.body.image)) {
+            couponData.image = req.body.image.trim();
+        }
+
+        const coupon = await Coupon.create(couponData);
 
         res.status(201).json(coupon);
     } catch (error) {
         res.status(500).json({ message: error.message });
+    }
+};
+
+exports.uploadCouponImage = async (req, res) => {
+    try {
+        const imageUrl = resolveUploadedFileUrl(req.file);
+
+        if (!imageUrl) {
+            console.error("Coupon image upload: no file received", {
+                contentType: req.headers["content-type"],
+            });
+            return res.status(400).json({ message: "No image uploaded. Please select a photo and try again." });
+        }
+
+        res.status(201).json({ imageUrl });
+    } catch (error) {
+        console.error("Coupon image upload error:", error);
+        res.status(500).json({ message: "Error uploading offer image", error: error.message });
     }
 };
 
@@ -103,6 +133,14 @@ exports.updateCoupon = async (req, res) => {
         delete updateData.status;
         delete updateData.isActive;
         delete updateData.isFeatured;
+        delete updateData.image;
+
+        const uploadedImage = resolveUploadedFileUrl(req.file);
+        if (uploadedImage) {
+            updateData.image = uploadedImage;
+        } else if (isRemoteImageUrl(req.body.image)) {
+            updateData.image = req.body.image.trim();
+        }
 
         const updatedCoupon = await Coupon.findByIdAndUpdate(req.params.id, updateData, { new: true });
         res.json(updatedCoupon);

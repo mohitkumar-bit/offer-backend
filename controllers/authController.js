@@ -142,7 +142,7 @@ exports.updateProfile = async (req, res) => {
         if (name) user.name = name;
         if (phone) user.phone = phone;
         if (req.file) {
-            user.avatar = req.file.path; // Cloudinary URL
+            user.avatar = req.file.path;
         }
 
         await user.save();
@@ -158,6 +158,43 @@ exports.updateProfile = async (req, res) => {
     } catch (error) {
         console.error("Update Profile Error:", error);
         res.status(500).json({ message: "Server error during profile update" });
+    }
+};
+
+exports.uploadAvatar = async (req, res) => {
+    try {
+        if (!req.file) {
+            console.error("Avatar upload: no file received", {
+                contentType: req.headers["content-type"],
+                bodyKeys: Object.keys(req.body || {}),
+            });
+            return res.status(400).json({ message: "No image uploaded. Please select a photo and try again." });
+        }
+
+        const { name, phone } = req.body;
+        const user = await User.findById(req.user._id);
+
+        if (!user) {
+            return res.status(404).json({ message: "User not found" });
+        }
+
+        if (name) user.name = name;
+        if (phone) user.phone = phone;
+        user.avatar = req.file.path;
+
+        await user.save();
+
+        res.json({
+            _id: user._id,
+            name: user.name,
+            email: user.email,
+            phone: user.phone,
+            role: user.role,
+            avatar: user.avatar,
+        });
+    } catch (error) {
+        console.error("Upload Avatar Error:", error);
+        res.status(500).json({ message: "Error uploading profile picture", error: error.message });
     }
 };
 

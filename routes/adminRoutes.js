@@ -32,6 +32,15 @@ router.post("/categories", categoryController.createCategory);
 router.put("/categories/:id", categoryController.updateCategory);
 router.delete("/categories/:id", categoryController.deleteCategory);
 
+// Home banner
+const bannerController = require("../controllers/bannerController");
+const { bannerUpload } = require("../utils/cloudinary");
+router.get("/banner", bannerController.getAdminBanner);
+router.put("/banner", bannerController.updateBanner);
+router.post("/banner/images", bannerUpload.array("images", 20), bannerController.uploadBannerImages);
+router.delete("/banner/images/:imageId", bannerController.deleteBannerImage);
+router.put("/banner/deactivate", bannerController.deactivateBannerImages);
+
 // Notifications
 const notificationController = require("../controllers/notificationController");
 router.post("/notifications", notificationController.createNotification);

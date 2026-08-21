@@ -4,7 +4,7 @@ exports.getCategories = async (req, res) => {
     try {
         const categories = await Category.find({ isActive: true })
             .sort({ name: 1 })
-            .select("name");
+            .select("name icon");
 
         res.status(200).json(categories);
     } catch (error) {
@@ -23,7 +23,7 @@ exports.getAllCategoriesAdmin = async (req, res) => {
 
 exports.createCategory = async (req, res) => {
     try {
-        const { name } = req.body;
+        const { name, icon } = req.body;
 
         if (!name || !name.trim()) {
             return res.status(400).json({ message: "Category name is required" });
@@ -37,7 +37,10 @@ exports.createCategory = async (req, res) => {
             return res.status(400).json({ message: "Category already exists" });
         }
 
-        const category = await Category.create({ name: name.trim() });
+        const category = await Category.create({
+            name: name.trim(),
+            icon: icon?.trim() || "category",
+        });
         res.status(201).json(category);
     } catch (error) {
         res.status(500).json({ message: "Error creating category", error: error.message });
@@ -47,7 +50,7 @@ exports.createCategory = async (req, res) => {
 exports.updateCategory = async (req, res) => {
     try {
         const { id } = req.params;
-        const { name, isActive } = req.body;
+        const { name, isActive, icon } = req.body;
 
         const category = await Category.findById(id);
         if (!category) {
@@ -76,6 +79,7 @@ exports.updateCategory = async (req, res) => {
         }
 
         if (isActive !== undefined) updateData.isActive = isActive;
+        if (icon !== undefined) updateData.icon = icon.trim() || "category";
 
         const updatedCategory = await Category.findByIdAndUpdate(id, updateData, { new: true });
 
