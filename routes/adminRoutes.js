@@ -32,6 +32,17 @@ router.post("/categories", categoryController.createCategory);
 router.put("/categories/:id", categoryController.updateCategory);
 router.delete("/categories/:id", categoryController.deleteCategory);
 
+// States & Cities
+const locationController = require("../controllers/locationController");
+router.get("/states", locationController.getAllStatesAdmin);
+router.post("/states", locationController.createState);
+router.put("/states/:id", locationController.updateState);
+router.delete("/states/:id", locationController.deleteState);
+router.get("/cities", locationController.getAllCitiesAdmin);
+router.post("/cities", locationController.createCity);
+router.put("/cities/:id", locationController.updateCity);
+router.delete("/cities/:id", locationController.deleteCity);
+
 // Home banner
 const bannerController = require("../controllers/bannerController");
 const { bannerUpload } = require("../utils/cloudinary");

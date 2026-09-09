@@ -30,6 +30,17 @@ const userSchema = new mongoose.Schema({
         type: String,
         default: "https://i.pravatar.cc/150?u=guest",
     },
+    city: {
+        type: String,
+        trim: true,
+        default: "",
+    },
+    state: {
+        type: String,
+        trim: true,
+        uppercase: true,
+        default: "",
+    },
     isBlocked: {
         type: Boolean,
         default: false,

@@ -22,6 +22,27 @@ const businessSchema = new mongoose.Schema({
         type: String,
         required: true,
     },
+    state: {
+        type: String,
+        trim: true,
+        uppercase: true,
+    },
+    city: {
+        type: String,
+        trim: true,
+    },
+    address: {
+        type: String,
+        trim: true,
+    },
+    pincode: {
+        type: String,
+        trim: true,
+    },
+    nearby: {
+        type: String,
+        trim: true,
+    },
     promoCode: {
         type: String,
         unique: true,

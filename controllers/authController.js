@@ -1,11 +1,23 @@
 const User = require("../models/User");
 const { generateAccessToken, generateRefreshToken, verifyRefreshToken } = require("../utils/jwt");
 
+const serializeUser = (user, tokens = {}) => ({
+    _id: user._id,
+    name: user.name,
+    email: user.email,
+    phone: user.phone,
+    role: user.role,
+    avatar: user.avatar,
+    city: user.city || "",
+    state: user.state || "",
+    ...tokens,
+});
+
 exports.register = async (req, res) => {
     console.log("regg....");
 
     try {
-        const { name, email, phone, password } = req.body;
+        const { name, email, phone, password, city, state } = req.body;
 
         const emailExists = await User.findOne({ email });
         if (emailExists) {
@@ -21,7 +33,9 @@ exports.register = async (req, res) => {
             name,
             email,
             phone,
-            password
+            password,
+            ...(city?.trim() ? { city: city.trim() } : {}),
+            ...(state?.trim() ? { state: state.trim().toUpperCase() } : {}),
         });
 
         if (user) {
@@ -31,15 +45,12 @@ exports.register = async (req, res) => {
             user.refreshToken = refreshToken;
             await user.save();
 
-            res.status(201).json({
-                _id: user._id,
-                name: user.name,
-                email: user.email,
-                phone: user.phone,
-                role: user.role,
-                token: accessToken,
-                refreshToken: refreshToken,
-            });
+            res.status(201).json(
+                serializeUser(user, {
+                    token: accessToken,
+                    refreshToken: refreshToken,
+                })
+            );
         }
     } catch (error) {
         console.error("Register Error:", error);
@@ -69,16 +80,12 @@ exports.login = async (req, res) => {
         user.refreshToken = refreshToken;
         await user.save();
 
-        res.json({
-            _id: user._id,
-            name: user.name,
-            email: user.email,
-            phone: user.phone,
-            role: user.role,
-            avatar: user.avatar,
-            token: accessToken,
-            refreshToken: refreshToken,
-        });
+        res.json(
+            serializeUser(user, {
+                token: accessToken,
+                refreshToken: refreshToken,
+            })
+        );
     } catch (error) {
         console.error("Login Error:", error);
         res.status(500).json({ message: "Server error during login" });
@@ -132,7 +139,7 @@ exports.updateProfile = async (req, res) => {
     console.log("update profile...");
 
     try {
-        const { name, phone } = req.body;
+        const { name, phone, city, state } = req.body;
         const user = await User.findById(req.user._id);
 
         if (!user) {
@@ -141,20 +148,15 @@ exports.updateProfile = async (req, res) => {
 
         if (name) user.name = name;
         if (phone) user.phone = phone;
+        if (city !== undefined) user.city = city.trim();
+        if (state !== undefined) user.state = state.trim().toUpperCase();
         if (req.file) {
             user.avatar = req.file.path;
         }
 
         await user.save();
 
-        res.json({
-            _id: user._id,
-            name: user.name,
-            email: user.email,
-            phone: user.phone,
-            role: user.role,
-            avatar: user.avatar,
-        });
+        res.json(serializeUser(user));
     } catch (error) {
         console.error("Update Profile Error:", error);
         res.status(500).json({ message: "Server error during profile update" });
@@ -171,7 +173,7 @@ exports.uploadAvatar = async (req, res) => {
             return res.status(400).json({ message: "No image uploaded. Please select a photo and try again." });
         }
 
-        const { name, phone } = req.body;
+        const { name, phone, city, state } = req.body;
         const user = await User.findById(req.user._id);
 
         if (!user) {
@@ -180,18 +182,13 @@ exports.uploadAvatar = async (req, res) => {
 
         if (name) user.name = name;
         if (phone) user.phone = phone;
+        if (city !== undefined) user.city = city.trim();
+        if (state !== undefined) user.state = state.trim().toUpperCase();
         user.avatar = req.file.path;
 
         await user.save();
 
-        res.json({
-            _id: user._id,
-            name: user.name,
-            email: user.email,
-            phone: user.phone,
-            role: user.role,
-            avatar: user.avatar,
-        });
+        res.json(serializeUser(user));
     } catch (error) {
         console.error("Upload Avatar Error:", error);
         res.status(500).json({ message: "Error uploading profile picture", error: error.message });

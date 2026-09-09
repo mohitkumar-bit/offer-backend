@@ -2,10 +2,70 @@ const Business = require("../models/Business");
 const User = require("../models/User");
 const Category = require("../models/Category");
 
+const buildLocationLabel = ({ address, nearby, city, state, pincode }) => {
+    let label = address?.trim() || "";
+    if (nearby?.trim()) {
+        label = label ? `${label}, Near ${nearby.trim()}` : `Near ${nearby.trim()}`;
+    }
+    if (city?.trim()) {
+        label = label ? `${label}, ${city.trim()}` : city.trim();
+    }
+    if (state?.trim()) {
+        label = label ? `${label}, ${state.trim().toUpperCase()}` : state.trim().toUpperCase();
+    }
+    if (pincode?.trim()) {
+        label = label ? `${label} - ${pincode.trim()}` : pincode.trim();
+    }
+    return label;
+};
+
 exports.registerBusiness = async (req, res) => {
     try {
-        const { shopName, ownerName, phone, location, businessType, email } = req.body;
+        const {
+            shopName,
+            ownerName,
+            phone,
+            location,
+            businessType,
+            email,
+            state,
+            city,
+            address,
+            pincode,
+            nearby,
+        } = req.body;
         const thumbnail = req.file ? req.file.path : undefined;
+
+        if (!state?.trim()) {
+            return res.status(400).json({ message: "State is required" });
+        }
+
+        if (!address?.trim()) {
+            return res.status(400).json({ message: "Address is required" });
+        }
+
+        if (!pincode?.trim()) {
+            return res.status(400).json({ message: "Pincode is required" });
+        }
+
+        if (!/^\d{6}$/.test(pincode.trim())) {
+            return res.status(400).json({ message: "Pincode must be 6 digits" });
+        }
+
+        const normalizedState = state.trim().toUpperCase();
+        const normalizedCity = city?.trim() || "";
+        const normalizedAddress = address.trim();
+        const normalizedPincode = pincode.trim();
+        const normalizedNearby = nearby?.trim() || "";
+        const locationLabel =
+            location?.trim() ||
+            buildLocationLabel({
+                address: normalizedAddress,
+                nearby: normalizedNearby,
+                city: normalizedCity,
+                state: normalizedState,
+                pincode: normalizedPincode,
+            });
 
         if (!businessType || !businessType.trim()) {
             return res.status(400).json({ message: "Shop category is required" });
@@ -25,7 +85,12 @@ exports.registerBusiness = async (req, res) => {
             shopName,
             ownerName,
             phone,
-            location,
+            location: locationLabel,
+            state: normalizedState,
+            city: normalizedCity,
+            address: normalizedAddress,
+            pincode: normalizedPincode,
+            nearby: normalizedNearby,
             businessType: businessType.trim(),
             email,
             thumbnail,
@@ -68,6 +133,46 @@ exports.updateBusiness = async (req, res) => {
 
         if (req.file) {
             updateData.thumbnail = req.file.path;
+        }
+
+        if (updateData.state !== undefined) {
+            updateData.state = updateData.state.trim().toUpperCase();
+        }
+
+        if (updateData.city !== undefined) {
+            updateData.city = updateData.city.trim();
+        }
+
+        if (updateData.address !== undefined) {
+            updateData.address = updateData.address.trim();
+        }
+
+        if (updateData.pincode !== undefined) {
+            updateData.pincode = updateData.pincode.trim();
+        }
+
+        if (updateData.nearby !== undefined) {
+            updateData.nearby = updateData.nearby.trim();
+        }
+
+        const shouldRebuildLocation =
+            updateData.address !== undefined ||
+            updateData.nearby !== undefined ||
+            updateData.city !== undefined ||
+            updateData.state !== undefined ||
+            updateData.pincode !== undefined;
+
+        if (shouldRebuildLocation) {
+            const existing = await Business.findOne({ _id: id, ownerId: req.user._id });
+            if (existing) {
+                updateData.location = buildLocationLabel({
+                    address: updateData.address ?? existing.address,
+                    nearby: updateData.nearby ?? existing.nearby,
+                    city: updateData.city ?? existing.city,
+                    state: updateData.state ?? existing.state,
+                    pincode: updateData.pincode ?? existing.pincode,
+                });
+            }
         }
 
         const business = await Business.findOneAndUpdate(
