@@ -22,6 +22,15 @@ const couponSchema = new mongoose.Schema({
         type: String,
         required: true,
     },
+    state: {
+        type: String,
+        trim: true,
+        uppercase: true,
+    },
+    city: {
+        type: String,
+        trim: true,
+    },
     category: {
         type: String,
         required: true,

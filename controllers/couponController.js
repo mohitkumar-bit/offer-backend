@@ -1,18 +1,38 @@
 const Coupon = require("../models/Coupon");
 const Business = require("../models/Business");
+const SavedOffer = require("../models/SavedOffer");
 const { resolveUploadedFileUrl, isRemoteImageUrl } = require("../utils/uploadUtils");
 
-const publicCouponFilter = async (extraQuery = {}) => {
-    const approvedBusinessIds = await Business.find({ status: "Approved" }).distinct("_id");
+const { getApprovedBusinessIdsForLocation } = require("../utils/locationQuery");
+
+const publicCouponFilter = async (extraQuery = {}, location = {}) => {
+    const approvedBusinessIds = await getApprovedBusinessIdsForLocation(
+        location.state,
+        location.city
+    );
+
+    const now = new Date();
 
     return {
         ...extraQuery,
         isActive: true,
-        $or: [
-            { status: "Approved" },
-            { status: { $exists: false } },
-        ],
         businessId: { $in: approvedBusinessIds },
+        $and: [
+            {
+                $or: [
+                    { status: "Approved" },
+                    { status: { $exists: false } },
+                ],
+            },
+            {
+                $or: [
+                    { expiryDate: null },
+                    { expiryDate: { $exists: false } },
+                    { expiryDate: { $gte: now } },
+                    { expiryDate: { $gte: now.toISOString() } },
+                ],
+            },
+        ],
     };
 };
 
@@ -36,6 +56,8 @@ exports.createCoupon = async (req, res) => {
             ...req.body,
             businessId,
             location: business.location,
+            state: business.state,
+            city: business.city,
             status: "Pending",
             isActive: false,
         };
@@ -77,11 +99,14 @@ exports.uploadCouponImage = async (req, res) => {
 
 exports.getAllCoupons = async (req, res) => {
     try {
-        const { businessId } = req.query;
+        const { businessId, state, city } = req.query;
         const extraQuery = businessId ? { businessId } : {};
-        const query = await publicCouponFilter(extraQuery);
+        const query = await publicCouponFilter(extraQuery, { state, city });
 
-        const coupons = await Coupon.find(query).populate("businessId", "shopName thumbnail status");
+        const coupons = await Coupon.find(query).populate(
+            "businessId",
+            "shopName thumbnail status state city location"
+        );
         res.json(coupons);
     } catch (error) {
         res.status(500).json({ message: error.message });
@@ -90,10 +115,11 @@ exports.getAllCoupons = async (req, res) => {
 
 exports.getFeaturedCoupons = async (req, res) => {
     try {
-        const query = await publicCouponFilter({ isFeatured: true });
+        const { state, city } = req.query;
+        const query = await publicCouponFilter({ isFeatured: true }, { state, city });
 
         const coupons = await Coupon.find(query)
-            .populate("businessId", "shopName thumbnail status")
+            .populate("businessId", "shopName thumbnail status state city location")
             .sort({ updatedAt: -1 });
 
         res.json(coupons);
@@ -142,6 +168,11 @@ exports.updateCoupon = async (req, res) => {
             updateData.image = req.body.image.trim();
         }
 
+        // When a vendor updates an offer, re-submit for admin approval
+        updateData.status = "Pending";
+        updateData.isActive = false;
+        updateData.isFeatured = false;
+
         const updatedCoupon = await Coupon.findByIdAndUpdate(req.params.id, updateData, { new: true });
         res.json(updatedCoupon);
     } catch (error) {
@@ -160,6 +191,8 @@ exports.deleteCoupon = async (req, res) => {
         }
 
         await Coupon.findByIdAndDelete(req.params.id);
+        await SavedOffer.deleteMany({ offerId: req.params.id });
+
         res.json({ message: "Coupon deleted successfully" });
     } catch (error) {
         res.status(500).json({ message: error.message });

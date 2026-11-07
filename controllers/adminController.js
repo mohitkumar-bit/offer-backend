@@ -9,14 +9,28 @@ exports.getDashboardStats = async (req, res) => {
         const pendingBusinesses = await Business.countDocuments({ status: "Pending" });
         const totalCoupons = await Coupon.countDocuments();
         const pendingCoupons = await Coupon.countDocuments({ status: "Pending" });
+        const now = new Date();
+        const nonExpiredFilter = {
+            $or: [
+                { expiryDate: null },
+                { expiryDate: { $exists: false } },
+                { expiryDate: { $gte: now } },
+            ],
+        };
         const approvedCoupons = await Coupon.countDocuments({
-            $or: [{ status: "Approved" }, { status: { $exists: false } }],
-            isActive: true,
+            $and: [
+                { $or: [{ status: "Approved" }, { status: { $exists: false } }] },
+                { isActive: true },
+                nonExpiredFilter,
+            ],
         });
         const featuredCoupons = await Coupon.countDocuments({
-            isFeatured: true,
-            isActive: true,
-            $or: [{ status: "Approved" }, { status: { $exists: false } }],
+            $and: [
+                { isFeatured: true },
+                { isActive: true },
+                { $or: [{ status: "Approved" }, { status: { $exists: false } }] },
+                nonExpiredFilter,
+            ],
         });
 
         res.status(200).json({
@@ -190,9 +204,10 @@ exports.toggleCouponFeature = async (req, res) => {
         }
 
         const isApproved = coupon.status === "Approved" || !coupon.status;
-        if (isFeatured && (!isApproved || !coupon.isActive)) {
+        const isExpired = coupon.expiryDate && new Date(coupon.expiryDate) < new Date();
+        if (isFeatured && (!isApproved || !coupon.isActive || isExpired)) {
             return res.status(400).json({
-                message: "Only approved and live offers can be featured",
+                message: "Only approved, live, and non-expired offers can be featured",
             });
         }
 

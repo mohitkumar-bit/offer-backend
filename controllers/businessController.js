@@ -192,7 +192,11 @@ exports.updateBusiness = async (req, res) => {
 
 exports.getAllBusinesses = async (req, res) => {
     try {
-        const businesses = await Business.find({ status: "Approved" });
+        const { buildBusinessLocationQuery } = require("../utils/locationQuery");
+        const { state, city } = req.query;
+        const query = buildBusinessLocationQuery(state, city);
+
+        const businesses = await Business.find(query).sort({ shopName: 1 });
         res.json(businesses);
     } catch (error) {
         res.status(500).json({ message: error.message });

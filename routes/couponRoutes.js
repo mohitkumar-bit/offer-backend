@@ -22,7 +22,7 @@ router.get("/", couponController.getAllCoupons);
 router.post("/upload-image", authMiddleware, handleCouponImageUpload, couponController.uploadCouponImage);
 router.post("/", authMiddleware, couponController.createCoupon);
 router.get("/business", authMiddleware, couponController.getBusinessCoupons);
-router.patch("/:id", authMiddleware, couponController.updateCoupon);
+router.patch("/:id", authMiddleware, handleCouponImageUpload, couponController.updateCoupon);
 router.delete("/:id", authMiddleware, couponController.deleteCoupon);
 
 module.exports = router;
